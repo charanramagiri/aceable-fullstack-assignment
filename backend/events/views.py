@@ -7,6 +7,7 @@ from rest_framework.decorators import api_view
 from .serializers import FileUploadSerializer
 from .utils import save_uploaded_files
 
+from .search_engine import search_events
 
 @api_view(["GET"])
 def health_check(request):
@@ -45,3 +46,16 @@ def parse_test(request):
         "total_events": len(events),
         "sample": events[:5]
     })
+
+@api_view(["POST"])
+def search_test(request):
+
+    data = request.data
+
+    results = search_events(
+        search_string=data.get("search"),
+        earliest_time=data.get("earliest_time"),
+        latest_time=data.get("latest_time"),
+    )
+
+    return Response(results)
