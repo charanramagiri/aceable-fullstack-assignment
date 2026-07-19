@@ -1,3 +1,5 @@
+from django.conf import settings
+
 EVENT_FIELDS = [
     "serialno",
     "version",
@@ -63,7 +65,6 @@ def parse_event_file(file_path):
 
     return events
 
-from django.conf import settings
 
 
 def parse_all_uploaded_files():

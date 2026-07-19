@@ -1,6 +1,6 @@
 import time
 
-from .parser import parse_all_uploaded_files
+from .parser_service import parse_all_uploaded_files
 
 SEARCH_FIELDS = [
     "account_id",
