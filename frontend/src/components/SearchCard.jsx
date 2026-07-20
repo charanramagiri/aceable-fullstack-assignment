@@ -73,10 +73,10 @@ function SearchCard({ onSearch }) {
     <section className="card" aria-labelledby="search-title">
       <div className="card-heading">
         <div>
-          <p className="card-kicker">Step 2</p>
+          <p className="card-kicker"></p>
           <h2 id="search-title">Search events</h2>
         </div>
-        <span className="status-chip">Ready</span>
+        <span className="status-chip"></span>
       </div>
 
       <p className="card-description">
@@ -119,7 +119,12 @@ function SearchCard({ onSearch }) {
         </label>
         </div>
 
-        <button className="primary-button" type="submit" disabled={searching}>
+        <button
+          className={`primary-button ${searching ? 'is-loading' : ''}`}
+          type="submit"
+          disabled={searching}
+          aria-busy={searching}
+        >
           {searching ? 'Searching...' : 'Search events'}
         </button>
       </form>

@@ -41,10 +41,10 @@ function UploadCard() {
     <section className="card" aria-labelledby="upload-title">
       <div className="card-heading">
         <div>
-          <p className="card-kicker">Step 1</p>
+          <p className="card-kicker"></p>
           <h2 id="upload-title">Upload event files</h2>
         </div>
-        <span className="status-chip">Ready</span>
+        <span className="status-chip"></span>
       </div>
 
       <p className="card-description">
@@ -76,10 +76,11 @@ function UploadCard() {
       )}
 
       <button
-        className="primary-button"
+        className={`primary-button ${uploading ? 'is-loading' : ''}`}
         type="button"
         disabled={selectedFiles.length === 0 || uploading}
         onClick={handleUpload}
+        aria-busy={uploading}
       >
         {uploading ? 'Uploading...' : 'Upload files'}
       </button>

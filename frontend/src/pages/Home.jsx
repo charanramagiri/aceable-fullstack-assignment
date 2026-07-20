@@ -12,14 +12,19 @@ function Home() {
   }
 
   return (
-    <main className="page-shell">
-      <Header />
-      <div className="workspace">
-        <UploadCard />
-        <SearchCard onSearch={handleSearch} />
-        <ResultsTable searchResults={searchResults} />
-      </div>
-    </main>
+    <div className="page-shell">
+      <main>
+        <Header />
+        <div className="workspace">
+          <UploadCard />
+          <SearchCard onSearch={handleSearch} />
+          <ResultsTable searchResults={searchResults} />
+        </div>
+      </main>
+      <footer className="site-footer">
+        Aceable Full Stack Assignment <span aria-hidden="true">•</span> React + Django REST Framework
+      </footer>
+    </div>
   )
 }
 
