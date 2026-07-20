@@ -18,4 +18,8 @@ export function uploadFiles(files) {
   })
 }
 
+export function searchEvents(payload) {
+  return api.post('search/', payload)
+}
+
 export default api

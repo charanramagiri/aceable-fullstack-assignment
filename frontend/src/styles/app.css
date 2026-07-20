@@ -183,6 +183,16 @@ h2 {
   color: #b42318;
 }
 
+.search-feedback {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fef3f2;
+  color: #b42318;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
 .search-fields {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -225,6 +235,23 @@ button:disabled {
 
 .results-card {
   grid-column: 1 / -1;
+}
+
+.results-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-top: 16px;
+  color: #52627a;
+  font-size: 0.875rem;
+}
+
+.results-summary p {
+  margin-bottom: 0;
+}
+
+.results-summary strong {
+  color: #172b4d;
 }
 
 .table-wrapper {
