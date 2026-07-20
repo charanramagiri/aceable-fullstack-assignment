@@ -143,6 +143,46 @@ h2 {
   clip: rect(0 0 0 0);
 }
 
+.selected-files {
+  margin-top: 16px;
+}
+
+.selected-files p {
+  margin-bottom: 8px;
+  color: #344663;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.selected-files ul {
+  display: grid;
+  gap: 6px;
+  max-height: 132px;
+  margin: 0;
+  padding-left: 20px;
+  overflow-y: auto;
+  color: #52627a;
+  font-size: 0.875rem;
+}
+
+.upload-feedback {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.upload-success {
+  background: #ecfdf3;
+  color: #067647;
+}
+
+.upload-error {
+  background: #fef3f2;
+  color: #b42318;
+}
+
 .search-fields {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

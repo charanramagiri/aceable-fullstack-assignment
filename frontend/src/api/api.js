@@ -4,4 +4,18 @@ const api = axios.create({
   baseURL: 'http://127.0.0.1:8000/api/',
 })
 
+export function uploadFiles(files) {
+  const formData = new FormData()
+
+  files.forEach((file) => {
+    formData.append('files', file)
+  })
+
+  return api.post('upload/', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+}
+
 export default api
