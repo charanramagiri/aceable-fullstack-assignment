@@ -8,5 +8,6 @@ urlpatterns = [
     path("health/", health_check, name="health-check"),
     path("upload/", upload_files, name="upload-files"),
     path("parse-test/", parse_test),
-    path("search-test/", search_test),
+    path("search/", search_test),
+    
 ]

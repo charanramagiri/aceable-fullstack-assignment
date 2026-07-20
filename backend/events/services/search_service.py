@@ -1,6 +1,6 @@
 import time
 
-from .parser_service import parse_all_uploaded_files
+from .cache_service import get_cache
 
 SEARCH_FIELDS = [
     "account_id",
@@ -10,6 +10,7 @@ SEARCH_FIELDS = [
     "action",
     "log_status",
 ]
+
 
 def matches_search_string(event, search_string):
     """
@@ -23,13 +24,13 @@ def matches_search_string(event, search_string):
     search_string = search_string.strip().lower()
 
     for field in SEARCH_FIELDS:
-
         value = str(event.get(field, "")).lower()
 
         if search_string in value:
             return True
 
     return False
+
 
 def matches_time_range(event, earliest_time=None, latest_time=None):
     """
@@ -41,16 +42,15 @@ def matches_time_range(event, earliest_time=None, latest_time=None):
     end = int(event["endtime"])
 
     if earliest_time:
-
         if start < int(earliest_time):
             return False
 
     if latest_time:
-
         if end > int(latest_time):
             return False
 
     return True
+
 
 def search_events(
     search_string=None,
@@ -63,7 +63,8 @@ def search_events(
 
     start_time = time.perf_counter()
 
-    events = parse_all_uploaded_files()
+    # Read events from in-memory cache instead of parsing files
+    events = get_cache()
 
     results = []
 

@@ -4,6 +4,7 @@ from rest_framework.response import Response
 
 from ..serializers import FileUploadSerializer
 from ..services.upload_service import save_uploaded_files
+from ..services.cache_service import refresh_cache
 
 
 @api_view(["POST"])
@@ -14,6 +15,9 @@ def upload_files(request):
         files = serializer.validated_data["files"]
 
         saved_files = save_uploaded_files(files)
+
+        # Refresh the in-memory cache after uploading new files
+        refresh_cache()
 
         return Response(
             {
