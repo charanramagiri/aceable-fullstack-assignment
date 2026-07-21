@@ -3,6 +3,7 @@ from django.conf import settings
 from pathlib import Path
 from events.models import UploadedFile
 from events.models import Event
+from .parser_service import parse_event_file
 
 
 def save_uploaded_files(files):
@@ -27,7 +28,20 @@ def save_uploaded_files(files):
     return saved_files
 
 
-from .parser_service import parse_event_file
+def find_duplicate_filenames(files):
+    """
+    Returns a list of filenames that have already been uploaded.
+    """
+
+    duplicates = []
+
+    for file in files:
+        if UploadedFile.objects.filter(filename=file.name).exists():
+            duplicates.append(file.name)
+
+    return duplicates
+
+
 
 
 def store_events_in_database(file_path):

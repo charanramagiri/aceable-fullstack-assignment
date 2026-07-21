@@ -4,8 +4,11 @@ from rest_framework.response import Response
 
 from ..serializers import FileUploadSerializer
 from ..services.parser_service import validate_uploaded_event_file
-from ..services.upload_service import save_uploaded_files
-from ..services.upload_service import store_events_in_database
+from ..services.upload_service import (
+    save_uploaded_files,
+    store_events_in_database,
+    find_duplicate_filenames,
+)
 
 
 @api_view(["POST"])
@@ -19,6 +22,19 @@ def upload_files(request):
             return Response(
                 {"detail": "Invalid event file format."},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Check for duplicate filenames before saving any files
+        duplicates = find_duplicate_filenames(files)
+
+        if duplicates:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "One or more files have already been uploaded.",
+                    "duplicates": duplicates,
+                },
+                status=status.HTTP_409_CONFLICT,
             )
 
         saved_files = save_uploaded_files(files)
