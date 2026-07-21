@@ -1,55 +1,8 @@
 import time
 
-from .cache_service import get_cache
+from django.db.models import Q
 
-SEARCH_FIELDS = [
-    "account_id",
-    "instance_id",
-    "srcaddr",
-    "dstaddr",
-    "action",
-    "log_status",
-]
-
-
-def matches_search_string(event, search_string):
-    """
-    Returns True if search_string matches
-    any searchable field.
-    """
-
-    if not search_string:
-        return True
-
-    search_string = search_string.strip().lower()
-
-    for field in SEARCH_FIELDS:
-        value = str(event.get(field, "")).lower()
-
-        if search_string in value:
-            return True
-
-    return False
-
-
-def matches_time_range(event, earliest_time=None, latest_time=None):
-    """
-    Check whether the event falls
-    within the requested time range.
-    """
-
-    start = int(event["starttime"])
-    end = int(event["endtime"])
-
-    if earliest_time:
-        if start < int(earliest_time):
-            return False
-
-    if latest_time:
-        if end > int(latest_time):
-            return False
-
-    return True
+from events.models import Event
 
 
 def search_events(
@@ -58,34 +11,65 @@ def search_events(
     latest_time=None,
 ):
     """
-    Search uploaded event files.
+    Search events stored in SQLite.
     """
 
-    start_time = time.perf_counter()
+    start = time.perf_counter()
 
-    # Read events from in-memory cache instead of parsing files
-    events = get_cache()
+    queryset = Event.objects.select_related("uploaded_file").all()
+
+    # Search text
+    if search_string:
+        queryset = queryset.filter(
+            Q(account_id__icontains=search_string)
+            | Q(instance_id__icontains=search_string)
+            | Q(srcaddr__icontains=search_string)
+            | Q(dstaddr__icontains=search_string)
+            | Q(action__icontains=search_string)
+            | Q(log_status__icontains=search_string)
+        )
+
+    # Earliest time filter
+    if earliest_time:
+        queryset = queryset.filter(
+            starttime__gte=int(earliest_time)
+        )
+
+    # Latest time filter
+    if latest_time:
+        queryset = queryset.filter(
+            endtime__lte=int(latest_time)
+        )
 
     results = []
 
-    for event in events:
+    for event in queryset:
 
-        if not matches_search_string(event, search_string):
-            continue
+        results.append(
+            {
+                "serialno": event.serialno,
+                "version": event.version,
+                "account_id": event.account_id,
+                "instance_id": event.instance_id,
+                "srcaddr": event.srcaddr,
+                "dstaddr": event.dstaddr,
+                "srcport": event.srcport,
+                "dstport": event.dstport,
+                "protocol": event.protocol,
+                "packets": event.packets,
+                "bytes": event.bytes,
+                "starttime": event.starttime,
+                "endtime": event.endtime,
+                "action": event.action,
+                "log_status": event.log_status,
+                "file_name": event.uploaded_file.filename,
+            }
+        )
 
-        if not matches_time_range(
-            event,
-            earliest_time,
-            latest_time,
-        ):
-            continue
-
-        results.append(event)
-
-    elapsed = round(time.perf_counter() - start_time, 4)
+    elapsed = round(time.perf_counter() - start, 4)
 
     return {
-        "count": len(results),
+        "count": queryset.count(),
         "search_time": elapsed,
         "results": results,
     }
