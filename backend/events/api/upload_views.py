@@ -6,6 +6,7 @@ from ..serializers import FileUploadSerializer
 from ..services.parser_service import validate_uploaded_event_file
 from ..services.upload_service import save_uploaded_files
 from ..services.cache_service import refresh_cache
+from ..services.upload_service import store_events_in_database
 
 
 @api_view(["POST"])
@@ -22,6 +23,9 @@ def upload_files(request):
             )
 
         saved_files = save_uploaded_files(files)
+
+        for file_path in saved_files:
+            store_events_in_database(file_path)
 
         refresh_cache()
 
