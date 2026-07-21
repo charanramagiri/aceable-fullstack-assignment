@@ -51,10 +51,28 @@ def store_events_in_database(file_path):
         event_objects.append(
             Event(
                 uploaded_file=uploaded_file,
+
+                serialno=int(event["serialno"]),
+                version=event["version"],
+
+                account_id=event["account_id"],
+                instance_id=event["instance_id"],
+
                 srcaddr=event["srcaddr"],
                 dstaddr=event["dstaddr"],
+
+                srcport=int(event["srcport"]),
+                dstport=int(event["dstport"]),
+
+                protocol=int(event["protocol"]),
+
+                packets=int(event["packets"]),
+                bytes=int(event["bytes"]),
+
+                starttime=int(event["starttime"]),
+                endtime=int(event["endtime"]),
+
                 action=event["action"],
-                starttime=event["starttime"],
                 log_status=event["log_status"],
             )
         )
