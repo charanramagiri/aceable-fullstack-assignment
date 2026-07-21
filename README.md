@@ -99,9 +99,7 @@ The backend follows a modular service-oriented architecture where event parsing,
 aceable-fullstack-assignment/
 │
 ├── backend/
-│   │
 │   ├── config/
-│   │
 │   ├── events/
 │   │   ├── api/
 │   │   ├── services/
@@ -109,9 +107,6 @@ aceable-fullstack-assignment/
 │   │   ├── serializers.py
 │   │   ├── urls.py
 │   │   └── admin.py
-│   │
-│   ├── uploads/
-│   │   └── events/
 │   │
 │   └── db.sqlite3        (development only)
 │
@@ -121,6 +116,9 @@ aceable-fullstack-assignment/
 │       ├── components/
 │       ├── pages/
 │       └── styles/
+│
+├── uploads/
+│   └── events/
 │
 └── README.md
 ```
