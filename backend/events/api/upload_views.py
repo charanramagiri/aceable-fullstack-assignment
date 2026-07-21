@@ -5,7 +5,6 @@ from rest_framework.response import Response
 from ..serializers import FileUploadSerializer
 from ..services.parser_service import validate_uploaded_event_file
 from ..services.upload_service import save_uploaded_files
-from ..services.cache_service import refresh_cache
 from ..services.upload_service import store_events_in_database
 
 
@@ -26,8 +25,6 @@ def upload_files(request):
 
         for file_path in saved_files:
             store_events_in_database(file_path)
-
-        refresh_cache()
 
         return Response(
             {
