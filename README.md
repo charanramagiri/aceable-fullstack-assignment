@@ -35,7 +35,7 @@ The backend follows a modular service-oriented architecture where event parsing,
 * Service-oriented backend architecture
 * Database-agnostic design ready for PostgreSQL migration
 
-### Frontend Features
+## Frontend Features
 
 * Modern responsive interface
 * Multiple file upload
