@@ -1,4 +1,5 @@
 from django.conf import settings
+from pathlib import Path
 
 EVENT_FIELDS = [
     "serialno",
@@ -38,7 +39,40 @@ def parse_event_line(line):
 
     return event
 
-from pathlib import Path
+
+def validate_uploaded_event_file(uploaded_file):
+    """
+    Return True when an uploaded file can be parsed as an event log.
+    """
+
+    try:
+        content = uploaded_file.read()
+        lines = content.decode("utf-8").splitlines()
+    except (AttributeError, UnicodeDecodeError):
+        return False
+    finally:
+        uploaded_file.seek(0)
+
+    event_count = 0
+
+    for line in lines:
+        if not line.strip():
+            continue
+
+        event = parse_event_line(line)
+
+        if event is None:
+            return False
+
+        try:
+            int(event["starttime"])
+            int(event["endtime"])
+        except ValueError:
+            return False
+
+        event_count += 1
+
+    return event_count > 0
 
 
 def parse_event_file(file_path):

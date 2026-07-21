@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from ..serializers import FileUploadSerializer
+from ..services.parser_service import validate_uploaded_event_file
 from ..services.upload_service import save_uploaded_files
 from ..services.cache_service import refresh_cache
 
@@ -14,9 +15,14 @@ def upload_files(request):
     if serializer.is_valid():
         files = serializer.validated_data["files"]
 
+        if not all(validate_uploaded_event_file(file) for file in files):
+            return Response(
+                {"detail": "Invalid event file format."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         saved_files = save_uploaded_files(files)
 
-        # Refresh the in-memory cache after uploading new files
         refresh_cache()
 
         return Response(
