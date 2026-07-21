@@ -35,8 +35,7 @@ The backend follows a modular service-oriented architecture where event parsing,
 * Service-oriented backend architecture
 * Database-agnostic design ready for PostgreSQL migration
 
-
-### Frontend
+### Frontend Features
 
 * Modern responsive interface
 * Multiple file upload
@@ -50,7 +49,6 @@ The backend follows a modular service-oriented architecture where event parsing,
   * Search Time
 
 ---
-
 
 ## Architecture
 
@@ -75,6 +73,7 @@ The backend follows a modular service-oriented architecture where event parsing,
                     JSON Response
 ```
 
+---
 
 # 🛠 Tech Stack
 
@@ -128,7 +127,7 @@ aceable-fullstack-assignment/
 
 ---
 
-## Database Design
+# Database Design
 
 The application stores parsed event data using two related models.
 
@@ -159,6 +158,7 @@ Important searchable fields include:
 
 The relationship between UploadedFile and Event is **One-to-Many**, allowing every uploaded file to own multiple parsed events.
 
+---
 
 # ⚙️ Installation
 
@@ -309,7 +309,6 @@ This structure improves readability, maintainability, and scalability.
 * Duplicate file uploads are prevented by validating filenames before processing.
 * Backend responsibilities are separated into dedicated services for upload handling, parsing, searching, and business logic.
 
-
 ---
 
 ## Notes
@@ -318,6 +317,7 @@ This structure improves readability, maintainability, and scalability.
 - The SQLite database (`db.sqlite3`) and uploaded files are excluded from version control using `.gitignore`.
 - When the project is cloned, a fresh database is created using Django migrations and users can upload their own event files for testing.
 
+---
 
 # 👨‍💻 Author
 
