@@ -17,14 +17,39 @@ class Event(models.Model):
         related_name="events",
     )
 
+    serialno = models.PositiveIntegerField()
+
+    version = models.CharField(max_length=10)
+
+    account_id = models.CharField(max_length=50, db_index=True)
+
+    instance_id = models.CharField(max_length=50, db_index=True)
+
     srcaddr = models.GenericIPAddressField(db_index=True)
+
     dstaddr = models.GenericIPAddressField(db_index=True)
 
-    action = models.CharField(max_length=20, db_index=True)
+    srcport = models.PositiveIntegerField()
+
+    dstport = models.PositiveIntegerField()
+
+    protocol = models.PositiveIntegerField()
+
+    packets = models.BigIntegerField()
+
+    bytes = models.BigIntegerField()
 
     starttime = models.BigIntegerField(db_index=True)
 
-    log_status = models.CharField(max_length=20)
+    endtime = models.BigIntegerField(db_index=True)
+
+    action = models.CharField(max_length=20, db_index=True)
+
+    log_status = models.CharField(max_length=20, db_index=True)
 
     def __str__(self):
-        return f"{self.action} | {self.srcaddr} -> {self.dstaddr}"
+        return (
+            f"{self.action} | "
+            f"{self.srcaddr}:{self.srcport} -> "
+            f"{self.dstaddr}:{self.dstport}"
+        )
