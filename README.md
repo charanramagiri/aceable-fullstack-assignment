@@ -1,8 +1,10 @@
 # Aceable Event Search System
 
-Aceable Event Search System is a full-stack assignment application for uploading, storing, and searching AWS VPC Flow Log event files.
+Aceable Event Search System is a full-stack web application for uploading, storing, and searching AWS VPC Flow Log event files. It was developed as part of the **Aceable Cyber Solutions Full Stack Developer Assignment**.
 
-The frontend is built with React and Vite. The backend is a Django REST Framework API that validates uploads, stores parsed events in SQLite, and supports search by event fields and time range.
+The frontend is built with **React** and **Vite**, while the backend uses **Django REST Framework**. Uploaded files are validated, parsed, stored in SQLite using Django ORM, and can be searched efficiently through REST APIs.
+
+---
 
 ## Features
 
@@ -15,36 +17,89 @@ The frontend is built with React and Vite. The backend is a Django REST Framewor
 - Display matching events, result count, and search execution time
 - Run the application locally or with Docker Compose
 
+---
+
+## Tech Stack
+
+### Frontend
+- React
+- Vite
+- Axios
+
+### Backend
+- Django
+- Django REST Framework
+
+### Database
+- SQLite (Django ORM)
+
+### Containerization
+- Docker
+- Docker Compose
+
+---
+
+## Architecture
+
+```text
+                React (Vite)
+                     │
+                     ▼
+           Django REST API
+                     │
+             Upload Validation
+                     │
+             Save Uploaded File
+                     │
+               Parse Event File
+                     │
+                     ▼
+          SQLite Database (ORM)
+                     │
+                     ▼
+              Search API Results
+```
+
+---
+
 ## Project Structure
 
 ```text
 aceable-fullstack-assignment/
-|- backend/
-|  |- config/
-|  |- events/
-|  |  |- api/
-|  |  |- migrations/
-|  |  |- services/
-|  |  |- models.py
-|  |  |- serializers.py
-|  |  `- urls.py
-|  |- Dockerfile
-|  |- entrypoint.sh
-|  |- manage.py
-|  `- requirements.txt
-|- frontend/
-|  |- public/
-|  |- src/
-|  |  |- api/
-|  |  |- components/
-|  |  |- pages/
-|  |  `- styles/
-|  |- Dockerfile
-|  |- package.json
-|  `- vite.config.js
-|- docker-compose.yml
-`- README.md
+│
+├── backend/
+│   ├── config/
+│   ├── events/
+│   │   ├── api/
+│   │   ├── migrations/
+│   │   ├── services/
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   └── urls.py
+│   ├── Dockerfile
+│   ├── entrypoint.sh
+│   ├── manage.py
+│   └── requirements.txt
+│
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   │   ├── api/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── styles/
+│   ├── Dockerfile
+│   ├── package.json
+│   └── vite.config.js
+│
+├── uploads/
+│   └── events/
+│
+├── docker-compose.yml
+└── README.md
 ```
+
+---
 
 ## Prerequisites
 
@@ -53,26 +108,32 @@ aceable-fullstack-assignment/
 - npm
 - Docker and Docker Compose (optional)
 
-## Local Setup
+---
 
-### Backend
+# Local Setup
+
+## Backend
 
 ```bash
 cd backend
 python -m venv venv
 ```
 
-Activate the environment:
+Activate the virtual environment:
+
+### Windows PowerShell
 
 ```bash
-# Windows PowerShell
 venv\Scripts\Activate.ps1
+```
 
-# Linux or macOS
+### Linux / macOS
+
+```bash
 source venv/bin/activate
 ```
 
-Install dependencies, apply migrations, and start Django:
+Install dependencies and start Django:
 
 ```bash
 pip install -r requirements.txt
@@ -80,9 +141,15 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-The API is available at `http://127.0.0.1:8000/api/`.
+Backend API:
 
-### Frontend
+```
+http://127.0.0.1:8000/api/
+```
+
+---
+
+## Frontend
 
 ```bash
 cd frontend
@@ -91,61 +158,120 @@ npm install
 npm run dev
 ```
 
-On Linux or macOS, use `cp .env.example .env` instead of `copy`.
+Linux/macOS:
 
-The frontend is available at `http://localhost:5173`.
+```bash
+cp .env.example .env
+```
 
-`VITE_API_URL` in `frontend/.env` controls the API base URL. The default local value is `http://127.0.0.1:8000/api/`.
+Frontend:
 
-## Docker Compose
+```
+http://localhost:5173
+```
 
-From the repository root:
+---
+
+## Environment Variables
+
+The frontend uses a single environment variable.
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_API_URL` | Backend API base URL |
+
+Example:
+
+```env
+VITE_API_URL=http://127.0.0.1:8000/api/
+```
+
+When running with Docker Compose, this value is automatically overridden.
+
+---
+
+# Docker Compose
+
+From the project root:
 
 ```bash
 docker compose up --build
 ```
 
-This starts the backend on port 8000 and the frontend on port 5173. Stop the services with:
+The application will be available at:
+
+Frontend:
+
+```
+http://localhost:5173
+```
+
+Backend:
+
+```
+http://localhost:8000/api/
+```
+
+Stop the containers:
 
 ```bash
 docker compose down
 ```
 
-## API Endpoints
+Docker support is included to provide a consistent development environment and simplify project setup.
 
-### Health check
+---
+
+# API Endpoints
+
+## Health Check
 
 ```http
 GET /api/health/
 ```
 
-### Upload event files
+---
+
+## Upload Event Files
 
 ```http
 POST /api/upload/
 Content-Type: multipart/form-data
 ```
 
-Send one or more files using the repeated `files` form field. A valid file is UTF-8 text with one or more VPC Flow Log event lines. Invalid uploads return HTTP 400 and are not saved. Duplicate filenames return HTTP 409.
+Upload one or more files using the repeated **files** form field.
 
-Successful uploads return:
+Behavior:
+
+- Validates every uploaded file
+- Rejects invalid files (HTTP 400)
+- Rejects duplicate filenames (HTTP 409)
+- Parses valid events
+- Stores uploaded-file metadata
+- Stores parsed events in SQLite
+
+Example response:
 
 ```json
 {
   "status": "success",
   "message": "1 file(s) uploaded successfully.",
-  "files": ["path/to/uploaded/file"]
+  "files": [
+    "uploads/events/flow-log.txt"
+  ]
 }
 ```
 
-### Search events
+---
+
+## Search Events
 
 ```http
 POST /api/search/
 Content-Type: application/json
 ```
 
-All search filters are optional:
+Example request:
 
 ```json
 {
@@ -155,7 +281,9 @@ All search filters are optional:
 }
 ```
 
-The response contains a result count, elapsed search time, and the matching event records:
+All search filters are optional.
+
+Example response:
 
 ```json
 {
@@ -173,19 +301,69 @@ The response contains a result count, elapsed search time, and the matching even
 }
 ```
 
-## Data Storage
+---
 
-Uploaded source files are stored under `uploads/events/`. Parsed events and upload metadata are stored in `backend/db.sqlite3` through Django models. Both locations are ignored by Git so each clone can start with its own local data.
+# Data Storage
 
-## Verification Commands
+The application stores:
+
+- Uploaded source files in:
+
+```
+uploads/events/
+```
+
+- Uploaded file metadata in the **UploadedFile** model
+- Parsed event records in the **Event** model
+- Event data in **SQLite** using Django ORM
+
+The following are excluded from version control:
+
+- `backend/db.sqlite3`
+- `uploads/events/`
+
+This allows every clone of the repository to start with a clean local environment.
+
+---
+
+# Design Decisions
+
+- Uploaded files are validated before being stored.
+- Parsed events are stored in SQLite using Django ORM.
+- Bulk database inserts are used for efficient event imports.
+- Duplicate uploads are prevented using filename validation.
+- Search operations query the database instead of reading uploaded files.
+- The project supports both local development and Docker Compose.
+
+---
+
+# Verification
+
+Backend:
 
 ```bash
-# Backend
 cd backend
 python manage.py check
+```
 
-# Frontend
-cd ../frontend
+Frontend:
+
+```bash
+cd frontend
 npm run lint
 npm run build
 ```
+
+Docker:
+
+```bash
+docker compose up --build
+```
+
+Verify:
+
+- File upload works
+- Search works
+- Docker containers start successfully
+
+---
