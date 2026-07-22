@@ -1,8 +1,10 @@
 import os
-from django.conf import settings
 from pathlib import Path
-from events.models import UploadedFile
-from events.models import Event
+
+from django.conf import settings
+
+from events.models import Event, UploadedFile
+
 from .parser_service import parse_event_file
 
 

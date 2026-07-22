@@ -1,249 +1,151 @@
-# 🔎 Aceable Event Search System
+# Aceable Event Search System
 
-## Overview
+Aceable Event Search System is a full-stack assignment application for uploading, storing, and searching AWS VPC Flow Log event files.
 
-Aceable Event Search System is a full-stack web application developed as part of the **Aceable Cyber Solutions Full Stack Assignment**.
+The frontend is built with React and Vite. The backend is a Django REST Framework API that validates uploads, stores parsed events in SQLite, and supports search by event fields and time range.
 
-The application allows users to upload AWS VPC Flow Log event files, automatically parses each uploaded file, stores every event in a SQLite database using Django ORM, and provides fast search capabilities through a responsive React interface.
+## Features
 
-The backend follows a modular service-oriented architecture where event parsing, file handling, database operations, and API endpoints are cleanly separated, making the application easy to maintain and extend. The data access layer is implemented using Django ORM, allowing the database backend to be switched from SQLite to PostgreSQL in the future with minimal code changes.
+- Upload one or more AWS VPC Flow Log files
+- Validate every file before it is saved
+- Reject invalid files without writing them to disk or the database
+- Prevent duplicate uploads by filename
+- Store uploaded-file metadata and parsed events in SQLite
+- Search by text, earliest time, and latest time
+- Display matching events, result count, and search execution time
+- Run the application locally or with Docker Compose
 
----
-
-# 📌 Features
-
-## Backend Features
-
-* Upload one or more AWS VPC Flow Log files
-* Validate uploads and prevent duplicate file uploads
-* Parse uploaded files immediately during upload
-* Store every parsed event in a SQLite database using Django ORM
-* Search events using:
-
-  * Search String
-  * Earliest Time
-  * Latest Time
-* Search across multiple event attributes including:
-
-  * Account ID
-  * Instance ID
-  * Source IP
-  * Destination IP
-  * Action
-  * Log Status
-* Return matching events with execution time
-* Service-oriented backend architecture
-* Database-agnostic design ready for PostgreSQL migration
-
-## Frontend Features
-
-* Modern responsive interface
-* Multiple file upload
-* Search form with validation
-* Loading indicators
-* Success and error notifications
-* Responsive results table
-* Summary cards displaying:
-
-  * Total Matches
-  * Search Time
-
----
-
-## Architecture
-
-```text
-                    React (Vite)
-                         │
-                         ▼
-                Django REST API
-                         │
-        ┌────────────────┴────────────────┐
-        │                                 │
-        ▼                                 ▼
- Save Uploaded File              Parse Uploaded File
- (uploads/events/)                      │
-        │                               ▼
-        │                     SQLite Database
-        │                    (Django ORM)
-        │                               │
-        └──────────────► Search API ◄───┘
-                         │
-                         ▼
-                    JSON Response
-```
-
----
-
-# 🛠 Tech Stack
-
-## Backend
-
-* Python
-* Django
-* Django REST Framework
-* django-cors-headers
-
-## Frontend
-
-* React
-* Vite
-* Axios
-* CSS
-
----
-
-# 📂 Project Structure
+## Project Structure
 
 ```text
 aceable-fullstack-assignment/
-│
-├── backend/
-│   ├── config/
-│   ├── events/
-│   │   ├── api/
-│   │   ├── services/
-│   │   ├── models.py
-│   │   ├── serializers.py
-│   │   ├── urls.py
-│   │   └── admin.py
-│   │
-│   └── db.sqlite3        (development only)
-│
-├── frontend/
-│   └── src/
-│       ├── api/
-│       ├── components/
-│       ├── pages/
-│       └── styles/
-│
-├── uploads/
-│   └── events/
-│
-└── README.md
+|- backend/
+|  |- config/
+|  |- events/
+|  |  |- api/
+|  |  |- migrations/
+|  |  |- services/
+|  |  |- models.py
+|  |  |- serializers.py
+|  |  `- urls.py
+|  |- Dockerfile
+|  |- entrypoint.sh
+|  |- manage.py
+|  `- requirements.txt
+|- frontend/
+|  |- public/
+|  |- src/
+|  |  |- api/
+|  |  |- components/
+|  |  |- pages/
+|  |  `- styles/
+|  |- Dockerfile
+|  |- package.json
+|  `- vite.config.js
+|- docker-compose.yml
+`- README.md
 ```
 
----
+## Prerequisites
 
-# Database Design
+- Python 3.12 or later
+- Node.js 22 or later
+- npm
+- Docker and Docker Compose (optional)
 
-The application stores parsed event data using two related models.
+## Local Setup
 
-### UploadedFile
-
-Stores metadata about every uploaded event file.
-
-| Field | Description |
-|-------|-------------|
-| filename | Original uploaded filename |
-| uploaded_at | Upload timestamp |
-| event_count | Number of parsed events |
-
-### Event
-
-Stores each parsed event as an individual database record linked to its uploaded file.
-
-Important searchable fields include:
-
-- account_id
-- instance_id
-- srcaddr
-- dstaddr
-- action
-- log_status
-- starttime
-- endtime
-
-The relationship between UploadedFile and Event is **One-to-Many**, allowing every uploaded file to own multiple parsed events.
-
----
-
-# ⚙️ Installation
-
-## Clone Repository
-
-```bash
-git clone <repository-url>
-cd aceable-fullstack-assignment
-```
-
----
-
-## Backend Setup
+### Backend
 
 ```bash
 cd backend
-
 python -m venv venv
+```
 
-# Windows
-venv\Scripts\activate
+Activate the environment:
 
-# Linux/macOS
+```bash
+# Windows PowerShell
+venv\Scripts\Activate.ps1
+
+# Linux or macOS
 source venv/bin/activate
+```
 
+Install dependencies, apply migrations, and start Django:
+
+```bash
 pip install -r requirements.txt
-
+python manage.py migrate
 python manage.py runserver
 ```
 
-Backend runs on:
+The API is available at `http://127.0.0.1:8000/api/`.
 
-```text
-http://127.0.0.1:8000
-```
-
----
-
-## Frontend Setup
+### Frontend
 
 ```bash
 cd frontend
-
+copy .env.example .env
 npm install
-
 npm run dev
 ```
 
-Frontend runs on:
+On Linux or macOS, use `cp .env.example .env` instead of `copy`.
 
-```text
-http://localhost:5173
+The frontend is available at `http://localhost:5173`.
+
+`VITE_API_URL` in `frontend/.env` controls the API base URL. The default local value is `http://127.0.0.1:8000/api/`.
+
+## Docker Compose
+
+From the repository root:
+
+```bash
+docker compose up --build
 ```
 
----
+This starts the backend on port 8000 and the frontend on port 5173. Stop the services with:
 
-# 🔗 API Endpoints
+```bash
+docker compose down
+```
 
-## Health Check
+## API Endpoints
+
+### Health check
 
 ```http
 GET /api/health/
 ```
 
----
-
-## Upload Files
+### Upload event files
 
 ```http
 POST /api/upload/
+Content-Type: multipart/form-data
 ```
 
-Content-Type:
+Send one or more files using the repeated `files` form field. A valid file is UTF-8 text with one or more VPC Flow Log event lines. Invalid uploads return HTTP 400 and are not saved. Duplicate filenames return HTTP 409.
 
-```text
-multipart/form-data
+Successful uploads return:
+
+```json
+{
+  "status": "success",
+  "message": "1 file(s) uploaded successfully.",
+  "files": ["path/to/uploaded/file"]
+}
 ```
 
----
-
-## Search Events
+### Search events
 
 ```http
 POST /api/search/
+Content-Type: application/json
 ```
 
-Example Request
+All search filters are optional:
 
 ```json
 {
@@ -253,17 +155,17 @@ Example Request
 }
 ```
 
-Example Response
+The response contains a result count, elapsed search time, and the matching event records:
 
 ```json
 {
-  "count": 56,
-  "search_time": 0.018,
+  "count": 1,
+  "search_time": 0.0012,
   "results": [
     {
-      "file_name": "xaa",
-      "srcaddr": "159.62.125.136",
-      "dstaddr": "30.55.177.194",
+      "file_name": "flow-log.txt",
+      "srcaddr": "10.0.0.1",
+      "dstaddr": "10.0.0.2",
       "action": "REJECT",
       "log_status": "OK"
     }
@@ -271,54 +173,19 @@ Example Response
 }
 ```
 
----
+## Data Storage
 
-# 🏗 Architecture
+Uploaded source files are stored under `uploads/events/`. Parsed events and upload metadata are stored in `backend/db.sqlite3` through Django models. Both locations are ignored by Git so each clone can start with its own local data.
 
-The backend follows a service-oriented architecture to separate business logic from API endpoints.
+## Verification Commands
 
-```text
-events/
+```bash
+# Backend
+cd backend
+python manage.py check
 
-api/
-├── health_views.py
-├── upload_views.py
-└── search_views.py
-
-services/
-├── parser_service.py
-├── upload_service.py
-├── search_service.py
-└── cache_service.py
+# Frontend
+cd ../frontend
+npm run lint
+npm run build
 ```
-
-This structure improves readability, maintainability, and scalability.
-
----
-
-## Design Decisions
-
-* Uploaded files are saved locally for reference and debugging.
-* Event files are parsed immediately during upload.
-* Parsed events are stored in a SQLite database instead of an in-memory cache.
-* Django ORM is used for all database operations, avoiding database-specific code.
-* The application is database-agnostic and can be migrated to PostgreSQL by updating the database configuration.
-* Search operations are performed directly by the database using indexed fields for improved scalability.
-* Duplicate file uploads are prevented by validating filenames before processing.
-* Backend responsibilities are separated into dedicated services for upload handling, parsing, searching, and business logic.
-
----
-
-## Notes
-
-- Uploaded files are stored locally under `uploads/events/` for development and debugging purposes.
-- The SQLite database (`db.sqlite3`) and uploaded files are excluded from version control using `.gitignore`.
-- When the project is cloned, a fresh database is created using Django migrations and users can upload their own event files for testing.
-
----
-
-# 👨‍💻 Author
-
-**Charan Ramagiri**
-
-Built as part of the Aceable Cyber Solutions Full Stack Assignment.

@@ -1,26 +1,33 @@
-# Python
+# Python and Django
 venv/
 __pycache__/
-*.pyc
+*.py[cod]
+*.sqlite3
 db.sqlite3
-
-# Django
 media/
 staticfiles/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage/
 
-# Node
+# Node and Vite
 node_modules/
 dist/
+dist-ssr/
+.vite/
 
-# Environment
+# Environment files
 .env
-
-# VS Code
-.vscode/
-
-# OS
-.DS_Store
-Thumbs.db
+.env.*
+!.env.example
 
 # Uploaded event files
 uploads/
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
