@@ -38,7 +38,10 @@ function SearchCard({ onSearch }) {
       return
     }
 
-    const payload = {}
+    const payload = {
+      page: 1,
+      page_size: 20,
+    }
     const searchValue = search.trim()
     const earliestValue = earliestTime.trim()
     const latestValue = latestTime.trim()
@@ -60,7 +63,7 @@ function SearchCard({ onSearch }) {
 
     try {
       const response = await searchEvents(payload)
-      onSearch(response)
+      onSearch(response, payload)
     } catch (error) {
       const backendMessage = error.response?.data?.message || error.response?.data?.detail
       setErrorMessage(backendMessage || 'Unable to search events. Please try again.')

@@ -1,4 +1,4 @@
-function ResultsTable({ searchResults }) {
+function ResultsTable({ searchResults, onPageChange, pageLoading, paginationError }) {
   const hasSearched = searchResults !== null
   const results = searchResults?.results ?? []
 
@@ -28,6 +28,32 @@ function ResultsTable({ searchResults }) {
               <strong>{searchResults.search_time}s</strong>
             </div>
           </div>
+
+          <div className="pagination-controls">
+            <button
+              type="button"
+              disabled={!searchResults.has_previous || pageLoading}
+              onClick={() => onPageChange(searchResults.page - 1)}
+            >
+              Previous
+            </button>
+            <span>
+              Page {searchResults.page} of {searchResults.total_pages}
+            </span>
+            <button
+              type="button"
+              disabled={!searchResults.has_next || pageLoading}
+              onClick={() => onPageChange(searchResults.page + 1)}
+            >
+              {pageLoading ? 'Loading...' : 'Next'}
+            </button>
+          </div>
+
+          {paginationError && (
+            <p className="pagination-error" role="alert">
+              {paginationError}
+            </p>
+          )}
 
           <div className="table-wrapper">
             <table>

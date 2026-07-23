@@ -1,6 +1,7 @@
 import time
 
 from django.db.models import Q
+from django.core.paginator import Paginator
 
 from events.models import Event
 
@@ -9,6 +10,8 @@ def search_events(
     search_string=None,
     earliest_time=None,
     latest_time=None,
+    page=1,
+    page_size=20,
 ):
     """
     Search events stored in SQLite.
@@ -16,7 +19,7 @@ def search_events(
 
     start = time.perf_counter()
 
-    queryset = Event.objects.select_related("uploaded_file").all()
+    queryset = Event.objects.select_related("uploaded_file").order_by("id")
 
     # Search text
     if search_string:
@@ -41,9 +44,12 @@ def search_events(
             endtime__lte=int(latest_time)
         )
 
+    paginator = Paginator(queryset, page_size)
+    page_obj = paginator.page(page)
+
     results = []
 
-    for event in queryset:
+    for event in page_obj:
 
         results.append(
             {
@@ -69,7 +75,12 @@ def search_events(
     elapsed = round(time.perf_counter() - start, 4)
 
     return {
-        "count": queryset.count(),
+        "count": paginator.count,
+        "page": page_obj.number,
+        "page_size": page_size,
+        "total_pages": paginator.num_pages,
+        "has_next": page_obj.has_next(),
+        "has_previous": page_obj.has_previous(),
         "search_time": elapsed,
         "results": results,
     }

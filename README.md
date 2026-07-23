@@ -115,7 +115,6 @@ aceable-fullstack-assignment/
 ## Backend
 
 ```bash
-cd backend
 python -m venv venv
 ```
 
@@ -136,6 +135,7 @@ source venv/bin/activate
 Install dependencies and start Django:
 
 ```bash
+cd backend
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver

@@ -335,6 +335,48 @@ button:disabled {
   line-height: 1.1;
 }
 
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+  color: #52627a;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.pagination-controls button {
+  padding: 8px 12px;
+  border: 1px solid #c9d8ea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #216ac8;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pagination-controls button:hover:not(:disabled) {
+  border-color: #216ac8;
+  background: #eef6ff;
+}
+
+.pagination-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.pagination-error {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #f7c7c2;
+  border-radius: 10px;
+  background: #fff4f2;
+  color: #b42318;
+  font-size: 0.875rem;
+}
+
 .table-wrapper {
   max-height: 430px;
   margin-top: 20px;
@@ -437,6 +479,10 @@ tr:last-child td {
 
   .results-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pagination-controls {
+    justify-content: space-between;
   }
 
   .site-footer {
