@@ -378,9 +378,8 @@ button:disabled {
 }
 
 .table-wrapper {
-  max-height: 430px;
   margin-top: 20px;
-  overflow: auto;
+  overflow-x: auto;
   border: 1px solid #dce6f2;
   border-radius: 14px;
   background: #ffffff;
