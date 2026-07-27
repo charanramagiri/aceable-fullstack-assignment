@@ -9,6 +9,12 @@ from rest_framework.test import APITestCase
 
 from events.models import Event, UploadedFile
 from events.services.archive_benchmark import BENCHMARK_LOGGER_NAME
+from events.services.parser_service import (
+    InvalidEventFileError,
+    ParsedEvent,
+    parse_event_line,
+    parse_event_stream,
+)
 
 
 EVENT_LINE = (
@@ -51,6 +57,96 @@ def special_member(member_type, name="unsupported"):
     member_info.type = member_type
     member_info.linkname = "events.log"
     return {"info": member_info}
+
+
+class ParsedEventTests(APITestCase):
+    def test_valid_line_produces_typed_record_with_correct_values(self):
+        event = parse_event_line(EVENT_LINE.decode("utf-8"))
+
+        self.assertIsInstance(event, ParsedEvent)
+        self.assertEqual(
+            event,
+            ParsedEvent(
+                serialno=1,
+                version="2",
+                account_id="account-1",
+                instance_id="instance-1",
+                srcaddr="10.0.0.1",
+                dstaddr="10.0.0.2",
+                srcport=12345,
+                dstport=443,
+                protocol=6,
+                packets=10,
+                bytes=1000,
+                starttime=100,
+                endtime=200,
+                action="ACCEPT",
+                log_status="OK",
+            ),
+        )
+
+        for field in (
+            "serialno",
+            "srcport",
+            "dstport",
+            "protocol",
+            "packets",
+            "bytes",
+            "starttime",
+            "endtime",
+        ):
+            self.assertIsInstance(getattr(event, field), int)
+
+        for field in (
+            "version",
+            "account_id",
+            "instance_id",
+            "srcaddr",
+            "dstaddr",
+            "action",
+            "log_status",
+        ):
+            self.assertIsInstance(getattr(event, field), str)
+
+    def test_invalid_field_counts_are_rejected(self):
+        valid_parts = EVENT_LINE.decode("utf-8").split()
+
+        for parts in (valid_parts[:-1], valid_parts + ["extra"]):
+            with self.subTest(field_count=len(parts)):
+                with self.assertRaises(InvalidEventFileError):
+                    list(
+                        parse_event_stream(
+                            io.BytesIO((" ".join(parts) + "\n").encode("utf-8"))
+                        )
+                    )
+
+    def test_each_invalid_numeric_field_is_rejected(self):
+        numeric_indexes = (0, 6, 7, 8, 9, 10, 11, 12)
+        valid_parts = EVENT_LINE.decode("utf-8").split()
+
+        for numeric_index in numeric_indexes:
+            parts = valid_parts.copy()
+            parts[numeric_index] = "invalid"
+
+            with self.subTest(field_index=numeric_index):
+                with self.assertRaises(InvalidEventFileError):
+                    parse_event_line(" ".join(parts))
+
+    def test_blank_lines_are_ignored(self):
+        events = list(
+            parse_event_stream(io.BytesIO(b"\n  \n" + EVENT_LINE + b"\n"))
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].serialno, 1)
+
+    def test_empty_stream_is_invalid(self):
+        with self.assertRaises(InvalidEventFileError):
+            list(parse_event_stream(io.BytesIO(b"\n \n")))
+
+    def test_invalid_utf8_is_invalid(self):
+        with self.assertRaises(InvalidEventFileError):
+            list(parse_event_stream(io.BytesIO(b"\xff\xfe\n")))
 
 
 class UploadStreamingTests(APITestCase):
@@ -105,6 +201,22 @@ class UploadStreamingTests(APITestCase):
             [("events.log", 1)],
         )
         self.assertEqual(Event.objects.count(), 1)
+        event = Event.objects.get()
+        self.assertEqual(event.serialno, 1)
+        self.assertEqual(event.version, "2")
+        self.assertEqual(event.account_id, "account-1")
+        self.assertEqual(event.instance_id, "instance-1")
+        self.assertEqual(event.srcaddr, "10.0.0.1")
+        self.assertEqual(event.dstaddr, "10.0.0.2")
+        self.assertEqual(event.srcport, 12345)
+        self.assertEqual(event.dstport, 443)
+        self.assertEqual(event.protocol, 6)
+        self.assertEqual(event.packets, 10)
+        self.assertEqual(event.bytes, 1000)
+        self.assertEqual(event.starttime, 100)
+        self.assertEqual(event.endtime, 200)
+        self.assertEqual(event.action, "ACCEPT")
+        self.assertEqual(event.log_status, "OK")
         self.assertIn("| outcome=success", benchmark_log)
         self.assertIn("| archives=1", benchmark_log)
         self.assertIn("| files=1", benchmark_log)

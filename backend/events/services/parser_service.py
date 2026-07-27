@@ -3,38 +3,27 @@ import io
 import tarfile
 import zlib
 from pathlib import Path
+from typing import NamedTuple
 
 from .archive_service import InvalidArchiveError
 
 
-EVENT_FIELDS = [
-    "serialno",
-    "version",
-    "account_id",
-    "instance_id",
-    "srcaddr",
-    "dstaddr",
-    "srcport",
-    "dstport",
-    "protocol",
-    "packets",
-    "bytes",
-    "starttime",
-    "endtime",
-    "action",
-    "log_status",
-]
-
-INTEGER_FIELDS = [
-    "serialno",
-    "srcport",
-    "dstport",
-    "protocol",
-    "packets",
-    "bytes",
-    "starttime",
-    "endtime",
-]
+class ParsedEvent(NamedTuple):
+    serialno: int
+    version: str
+    account_id: str
+    instance_id: str
+    srcaddr: str
+    dstaddr: str
+    srcport: int
+    dstport: int
+    protocol: int
+    packets: int
+    bytes: int
+    starttime: int
+    endtime: int
+    action: str
+    log_status: str
 
 
 class InvalidEventFileError(Exception):
@@ -44,10 +33,29 @@ class InvalidEventFileError(Exception):
 def parse_event_line(line):
     parts = line.strip().split()
 
-    if len(parts) != len(EVENT_FIELDS):
+    if len(parts) != len(ParsedEvent._fields):
         return None
 
-    return dict(zip(EVENT_FIELDS, parts))
+    try:
+        return ParsedEvent(
+            serialno=int(parts[0]),
+            version=parts[1],
+            account_id=parts[2],
+            instance_id=parts[3],
+            srcaddr=parts[4],
+            dstaddr=parts[5],
+            srcport=int(parts[6]),
+            dstport=int(parts[7]),
+            protocol=int(parts[8]),
+            packets=int(parts[9]),
+            bytes=int(parts[10]),
+            starttime=int(parts[11]),
+            endtime=int(parts[12]),
+            action=parts[13],
+            log_status=parts[14],
+        )
+    except ValueError as error:
+        raise InvalidEventFileError("Invalid event file format.") from error
 
 
 def parse_event_file(file_path):
@@ -64,12 +72,6 @@ def parse_event_file(file_path):
 
                 if event is None:
                     raise InvalidEventFileError("Invalid event file format.")
-
-                try:
-                    for field in INTEGER_FIELDS:
-                        int(event[field])
-                except ValueError as error:
-                    raise InvalidEventFileError("Invalid event file format.") from error
 
                 event_count += 1
                 yield event
@@ -93,12 +95,6 @@ def parse_event_stream(binary_stream):
 
             if event is None:
                 raise InvalidEventFileError("Invalid event file format.")
-
-            try:
-                for field in INTEGER_FIELDS:
-                    int(event[field])
-            except ValueError as error:
-                raise InvalidEventFileError("Invalid event file format.") from error
 
             event_count += 1
             yield event
