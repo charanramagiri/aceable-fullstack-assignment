@@ -1,5 +1,6 @@
 import tarfile
 import tempfile
+import time
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
 
@@ -15,17 +16,23 @@ def is_event_archive(uploaded_file):
 
 
 @contextmanager
-def extract_event_archive(uploaded_file):
+def extract_event_archive(uploaded_file, metrics=None):
     with tempfile.TemporaryDirectory() as temporary_directory:
         temporary_path = Path(temporary_directory)
         archive_path = temporary_path / "upload.tar.gz"
         extraction_path = temporary_path / "extracted"
         extraction_path.mkdir()
 
-        with archive_path.open("wb") as destination:
-            for chunk in uploaded_file.chunks():
-                destination.write(chunk)
+        copy_started = time.perf_counter()
+        try:
+            with archive_path.open("wb") as destination:
+                for chunk in uploaded_file.chunks():
+                    destination.write(chunk)
+        finally:
+            if metrics is not None:
+                metrics.archive_copy_seconds += time.perf_counter() - copy_started
 
+        extraction_started = time.perf_counter()
         try:
             with tarfile.open(archive_path, "r:gz") as archive:
                 members = archive.getmembers()
@@ -42,6 +49,11 @@ def extract_event_archive(uploaded_file):
                 archive.extractall(extraction_path, members=members, filter="data")
         except (OSError, tarfile.TarError) as error:
             raise InvalidArchiveError("Invalid archive file.") from error
+        finally:
+            if metrics is not None:
+                metrics.extraction_seconds += (
+                    time.perf_counter() - extraction_started
+                )
 
         extracted_files = [
             file_path
@@ -52,15 +64,20 @@ def extract_event_archive(uploaded_file):
         if not extracted_files:
             raise InvalidArchiveError("Invalid archive file.")
 
+        if metrics is not None:
+            metrics.files += len(extracted_files)
+
         yield extracted_files
 
 
 @contextmanager
-def extract_event_archives(uploaded_files):
+def extract_event_archives(uploaded_files, metrics=None):
     with ExitStack() as stack:
         extracted_files = []
 
         for uploaded_file in uploaded_files:
-            extracted_files.extend(stack.enter_context(extract_event_archive(uploaded_file)))
+            extracted_files.extend(
+                stack.enter_context(extract_event_archive(uploaded_file, metrics))
+            )
 
         yield extracted_files
