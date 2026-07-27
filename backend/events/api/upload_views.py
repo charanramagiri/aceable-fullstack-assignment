@@ -1,5 +1,6 @@
 import logging
 import time
+from contextlib import closing
 
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -9,7 +10,7 @@ from ..serializers import FileUploadSerializer
 from ..services.archive_service import (
     InvalidArchiveError,
     is_event_archive,
-    extract_event_archives,
+    iter_event_archive_members,
 )
 from ..services.archive_import_service import (
     EVENT_BATCH_SIZE,
@@ -49,9 +50,14 @@ def upload_files(request):
 
             try:
                 metrics.error_stage = "extraction"
-                with extract_event_archives(files, metrics) as extracted_files:
+                with closing(
+                    iter_event_archive_members(files, metrics)
+                ) as archive_members:
                     metrics.error_stage = "import"
-                    response_files = import_archive_events(extracted_files, metrics)
+                    response_files = import_archive_events(
+                        archive_members,
+                        metrics,
+                    )
             except (InvalidArchiveError, InvalidEventFileError) as error:
                 return Response(
                     {"detail": str(error)},

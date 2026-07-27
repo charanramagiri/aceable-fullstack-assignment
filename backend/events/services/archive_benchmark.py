@@ -14,7 +14,7 @@ class ArchiveImportMetrics:
     files: int = 0
     events: int = 0
     archive_copy_seconds: float = 0.0
-    extraction_seconds: float = 0.0
+    archive_streaming_seconds: float = 0.0
     parsing_seconds: float = 0.0
     uploaded_file_insert_seconds: float = 0.0
     event_object_creation_seconds: float = 0.0
@@ -31,7 +31,7 @@ class ArchiveImportMetrics:
             f" | files={self.files}"
             f" | events={self.events}"
             f" | archive_copy_seconds={self.archive_copy_seconds:.6f}"
-            f" | extraction_seconds={self.extraction_seconds:.6f}"
+            f" | archive_streaming_seconds={self.archive_streaming_seconds:.6f}"
             f" | parsing_seconds={self.parsing_seconds:.6f}"
             f" | uploaded_file_insert_seconds={self.uploaded_file_insert_seconds:.6f}"
             f" | event_object_creation_seconds={self.event_object_creation_seconds:.6f}"

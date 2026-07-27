@@ -4,37 +4,42 @@ from django.db import transaction
 
 from events.models import Event, UploadedFile
 
-from .parser_service import parse_event_file
+from .archive_service import InvalidArchiveError
+from .parser_service import parse_event_stream
 
 UPLOADED_FILE_BATCH_SIZE = 500
 EVENT_BATCH_SIZE = 1000
 
 
-def import_archive_events(file_paths, metrics=None):
+def import_archive_events(archive_members, metrics=None):
     import_started = time.perf_counter()
     try:
         with transaction.atomic():
             parsed_files = []
 
-            for file_path in file_paths:
+            for archive_member in archive_members:
                 if metrics is not None:
                     metrics.error_stage = "parsing"
                 parsing_started = time.perf_counter()
                 try:
-                    events = list(parse_event_file(file_path))
+                    events = list(parse_event_stream(archive_member.stream))
+                except InvalidArchiveError:
+                    if metrics is not None:
+                        metrics.error_stage = "archive_streaming"
+                    raise
                 finally:
                     if metrics is not None:
                         metrics.parsing_seconds += (
                             time.perf_counter() - parsing_started
                         )
-                parsed_files.append((file_path, events))
+                parsed_files.append((archive_member.filename, events))
 
             uploaded_files = [
                 UploadedFile(
-                    filename=file_path.name,
+                    filename=filename,
                     event_count=len(events),
                 )
-                for file_path, events in parsed_files
+                for filename, events in parsed_files
             ]
             if metrics is not None:
                 metrics.error_stage = "uploaded_file_insert"
