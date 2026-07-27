@@ -3,12 +3,13 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from ..serializers import FileUploadSerializer
-from ..services.parser_service import validate_uploaded_event_file
-from ..services.upload_service import (
-    save_uploaded_files,
-    store_events_in_database,
-    find_duplicate_filenames,
+from ..services.archive_service import (
+    InvalidArchiveError,
+    is_event_archive,
+    extract_event_archives,
 )
+from ..services.archive_import_service import import_archive_events
+from ..services.parser_service import InvalidEventFileError
 
 
 @api_view(["POST"])
@@ -18,35 +19,26 @@ def upload_files(request):
     if serializer.is_valid():
         files = serializer.validated_data["files"]
 
-        if not all(validate_uploaded_event_file(file) for file in files):
+        if not all(is_event_archive(file) for file in files):
             return Response(
-                {"detail": "Invalid event file format."},
+                {"detail": "Only .tgz and .tar.gz uploads are supported."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Check for duplicate filenames before saving any files
-        duplicates = find_duplicate_filenames(files)
-
-        if duplicates:
+        try:
+            with extract_event_archives(files) as extracted_files:
+                response_files = import_archive_events(extracted_files)
+        except (InvalidArchiveError, InvalidEventFileError) as error:
             return Response(
-                {
-                    "status": "error",
-                    "message": "One or more files have already been uploaded.",
-                    "duplicates": duplicates,
-                },
-                status=status.HTTP_409_CONFLICT,
+                {"detail": str(error)},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-
-        saved_files = save_uploaded_files(files)
-
-        for file_path in saved_files:
-            store_events_in_database(file_path)
 
         return Response(
             {
                 "status": "success",
-                "message": f"{len(saved_files)} file(s) uploaded successfully.",
-                "files": saved_files,
+                "message": f"{len(response_files)} file(s) uploaded successfully.",
+                "files": response_files,
             },
             status=status.HTTP_201_CREATED,
         )

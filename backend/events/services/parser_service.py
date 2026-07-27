@@ -1,6 +1,5 @@
 from pathlib import Path
 
-from django.conf import settings
 
 EVENT_FIELDS = [
     "serialno",
@@ -20,107 +19,56 @@ EVENT_FIELDS = [
     "log_status",
 ]
 
+INTEGER_FIELDS = [
+    "serialno",
+    "srcport",
+    "dstport",
+    "protocol",
+    "packets",
+    "bytes",
+    "starttime",
+    "endtime",
+]
+
+
+class InvalidEventFileError(Exception):
+    """Raised when an event file contains invalid data."""
+
+
 def parse_event_line(line):
-    """
-    Parse a single event line into a dictionary.
-    Returns None if the line is invalid.
-    """
-
-    line = line.strip()
-
-    if not line:
-        return None
-
-    parts = line.split()
+    parts = line.strip().split()
 
     if len(parts) != len(EVENT_FIELDS):
         return None
 
-    event = dict(zip(EVENT_FIELDS, parts))
-
-    return event
-
-
-def validate_uploaded_event_file(uploaded_file):
-    """
-    Return True when an uploaded file can be parsed as an event log.
-    """
-
-    try:
-        content = uploaded_file.read()
-        lines = content.decode("utf-8").splitlines()
-    except (AttributeError, UnicodeDecodeError):
-        return False
-    finally:
-        uploaded_file.seek(0)
-
-    event_count = 0
-
-    for line in lines:
-        if not line.strip():
-            continue
-
-        event = parse_event_line(line)
-
-        if event is None:
-            return False
-
-        try:
-            int(event["starttime"])
-            int(event["endtime"])
-        except ValueError:
-            return False
-
-        event_count += 1
-
-    return event_count > 0
+    return dict(zip(EVENT_FIELDS, parts))
 
 
 def parse_event_file(file_path):
-    """
-    Parse one event file.
-    Returns a list of event dictionaries.
-    """
-
-    events = []
-
     file_path = Path(file_path)
+    event_count = 0
 
-    with open(file_path, "r") as file:
+    try:
+        with file_path.open("r", encoding="utf-8") as file:
+            for line in file:
+                if not line.strip():
+                    continue
 
-        for line in file:
+                event = parse_event_line(line)
 
-            event = parse_event_line(line)
+                if event is None:
+                    raise InvalidEventFileError("Invalid event file format.")
 
-            if event:
+                try:
+                    for field in INTEGER_FIELDS:
+                        int(event[field])
+                except ValueError as error:
+                    raise InvalidEventFileError("Invalid event file format.") from error
 
-                event["file_name"] = file_path.name
+                event_count += 1
+                yield event
+    except (OSError, UnicodeDecodeError) as error:
+        raise InvalidEventFileError("Invalid event file format.") from error
 
-                events.append(event)
-
-    return events
-
-
-
-def parse_all_uploaded_files():
-    """
-    Parse every uploaded event file.
-    Returns one combined list of all events.
-    """
-
-    all_events = []
-
-    upload_dir = Path(settings.MEDIA_ROOT)
-
-    if not upload_dir.exists():
-        return all_events
-
-    for file_path in upload_dir.iterdir():
-
-        if file_path.is_file():
-
-            events = parse_event_file(file_path)
-
-            all_events.extend(events)
-
-    return all_events
+    if event_count == 0:
+        raise InvalidEventFileError("Invalid event file format.")
