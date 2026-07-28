@@ -2,7 +2,6 @@ import gzip
 import io
 import tarfile
 import zlib
-from pathlib import Path
 from typing import NamedTuple
 
 from .archive_service import InvalidArchiveError
@@ -56,30 +55,6 @@ def parse_event_line(line):
         )
     except ValueError as error:
         raise InvalidEventFileError("Invalid event file format.") from error
-
-
-def parse_event_file(file_path):
-    file_path = Path(file_path)
-    event_count = 0
-
-    try:
-        with file_path.open("r", encoding="utf-8") as file:
-            for line in file:
-                if not line.strip():
-                    continue
-
-                event = parse_event_line(line)
-
-                if event is None:
-                    raise InvalidEventFileError("Invalid event file format.")
-
-                event_count += 1
-                yield event
-    except (OSError, UnicodeDecodeError) as error:
-        raise InvalidEventFileError("Invalid event file format.") from error
-
-    if event_count == 0:
-        raise InvalidEventFileError("Invalid event file format.")
 
 
 def parse_event_stream(binary_stream):

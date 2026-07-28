@@ -116,9 +116,6 @@ integers.
 - Parsed Event rows are stored in `backend/db.sqlite3` during local development.
 - Docker Compose bind-mounts `./backend` into the backend container, so its
   SQLite file persists in the local backend directory.
-- The repository contains an `uploads/` directory and Django `MEDIA_ROOT`
-  configuration, but the current streaming upload pipeline does not write
-  archives or extracted members there.
 
 ## Search functionality
 
@@ -262,9 +259,9 @@ Stop the services:
 docker compose down
 ```
 
-The Compose configuration bind-mounts `./backend` to `/app`, `./uploads` to
-`/uploads`, and `./frontend` to the frontend container. It also uses an
-anonymous `/app/node_modules` volume.
+The Compose configuration bind-mounts `./backend` to `/app` and `./frontend`
+to the frontend container. It also uses an anonymous `/app/node_modules`
+volume.
 
 ## Testing and verification
 
@@ -400,7 +397,6 @@ aceable-fullstack-assignment/
 |   |-- Dockerfile
 |   |-- package.json
 |   `-- vite.config.js
-|-- uploads/
 |-- docker-compose.yml
 `-- README.md
 ```

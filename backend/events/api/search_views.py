@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from ..services.search_service import search_events
+from ..services.search_service import search_events as search_event_records
 
 DEFAULT_PAGE = 1
 DEFAULT_PAGE_SIZE = 20
@@ -27,7 +27,7 @@ def get_pagination_params(data):
 
 
 @api_view(["POST"])
-def search_test(request):
+def search_events(request):
 
     data = request.data
     pagination_params, error_message = get_pagination_params(data)
@@ -41,7 +41,7 @@ def search_test(request):
     page, page_size = pagination_params
 
     try:
-        results = search_events(
+        results = search_event_records(
             search_string=data.get("search"),
             earliest_time=data.get("earliest_time"),
             latest_time=data.get("latest_time"),
