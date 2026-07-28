@@ -13,6 +13,8 @@ and stores searchable metadata and Event rows in SQLite.
   temporarily buffer sufficiently large multipart uploads.
 - Reject malformed archives, empty archives, links, devices, FIFOs, and invalid
   event files.
+- Reject exact, case-sensitive duplicate archive-member basenames from previous
+  imports or the current request.
 - Roll back the complete request if any archive member is invalid.
 - Parse numeric fields once into a typed `ParsedEvent` representation.
 - Insert UploadedFile and Event records with Django ORM bulk operations.
@@ -60,15 +62,19 @@ original archive.
 ```text
 POST .tgz/.tar.gz archive(s)
   -> validate extensions
+  -> begin transaction.atomic()
+  -> load existing UploadedFile member basenames once
   -> open each upload directly with tarfile
   -> accept directories and regular files only
   -> stream each regular member with extractfile()
+  -> normalize its basename and check existing/request-local filename sets
+     -> return HTTP 409 if the basename is a duplicate
   -> decode and parse events line by line
   -> create ParsedEvent NamedTuple records
   -> create UploadedFile and Event objects
-  -> transaction.atomic()
   -> UploadedFile.bulk_create(batch_size=500)
   -> Event.bulk_create(batch_size=1000)
+  -> commit transaction
   -> return HTTP 201
 ```
 
@@ -76,6 +82,13 @@ Directories are ignored. Symlinks, hard links, devices, FIFOs, malformed
 archives, archives without regular files, invalid UTF-8, empty event members,
 and malformed event lines cause an HTTP 400 response. The transaction ensures
 that no rows from the request remain after an import failure.
+
+Duplicate identity is the normalized basename stored in `UploadedFile.filename`,
+not the outer archive filename or full internal member path. Matching is exact
+and case-sensitive. HTTP 409 is returned if that basename already exists from a
+successful import, occurs more than once within one archive, or occurs across
+multiple archives in the same request. The complete request rolls back while
+previously committed database rows remain unchanged.
 
 The application does not create its own archive copy. Django's configured
 upload handlers may temporarily buffer sufficiently large multipart uploads
@@ -301,6 +314,11 @@ The backend logs a structured `Archive import benchmark` INFO line for each
 upload attempt. Timings are diagnostic only and are not returned in the API
 response.
 
+Duplicate initialization loads existing member filenames with one database
+query. Request-local Python set membership then checks each streamed member; it
+does not execute one query per archive member. Duplicate-check performance
+depends on the number of existing and submitted filenames.
+
 ## API endpoints
 
 | Method | Route | Purpose |
@@ -347,6 +365,18 @@ request returns HTTP 201. The response message count is the number of
 successfully imported regular archive members, not the number of outer
 `.tgz`/`.tar.gz` archives submitted. The `files` array contains those members'
 basenames in processing order.
+
+Duplicate archive-member basenames return HTTP 409 Conflict with a `detail`
+message. For example, when `events.log` was imported previously:
+
+```json
+{
+  "detail": "An archive member named 'events.log' has already been imported."
+}
+```
+
+The failed request creates no UploadedFile or Event rows. Rows committed before
+that request remain unchanged.
 
 ### Search
 
@@ -415,6 +445,11 @@ aceable-fullstack-assignment/
   numeric values once.
 - **Request-wide transaction:** provides all-or-nothing behavior across every
   archive in one upload.
+- **Lightweight filename duplicate detection:** exact, case-sensitive member
+  basenames are checked using one existing-filename query and request-local
+  sets. Contents are not compared: different contents with the same basename
+  are duplicates, while identical contents under different basenames are not.
+  This is an intentional assignment-level tradeoff.
 - **Bulk sizes:** UploadedFile uses `500`; Event uses `1000`. Larger Event
   batches and repeated bounded-buffer flushes did not improve the measured
   workload.
@@ -462,6 +497,10 @@ aceable-fullstack-assignment/
 - Confirm the archive contains at least one regular UTF-8 event file.
 - Confirm each nonblank event line has exactly 15 fields and valid integers.
 - Links and special TAR members intentionally invalidate the entire upload.
+- An HTTP 409 means a normalized member basename was already imported or was
+  repeated in the current request. Renaming only the outer `.tgz`/`.tar.gz`
+  file does not change member-basename identity; this identity rule is
+  intentional and does not compare contents.
 - Large imports retain all parsed records and Event objects until insertion, so
   available memory can limit maximum practical archive size.
 
