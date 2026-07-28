@@ -13,6 +13,7 @@ from ..services.archive_service import (
     iter_event_archive_members,
 )
 from ..services.archive_import_service import (
+    DuplicateArchiveMemberError,
     EVENT_BATCH_SIZE,
     UPLOADED_FILE_BATCH_SIZE,
     import_archive_events,
@@ -58,6 +59,22 @@ def upload_files(request):
                         archive_members,
                         metrics,
                     )
+            except DuplicateArchiveMemberError as error:
+                metrics.error_stage = "duplicate_detection"
+                if error.already_imported:
+                    detail = (
+                        f"An archive member named '{error.filename}' "
+                        "has already been imported."
+                    )
+                else:
+                    detail = (
+                        "The submitted archives contain more than one member "
+                        f"named '{error.filename}'."
+                    )
+                return Response(
+                    {"detail": detail},
+                    status=status.HTTP_409_CONFLICT,
+                )
             except (InvalidArchiveError, InvalidEventFileError) as error:
                 return Response(
                     {"detail": str(error)},

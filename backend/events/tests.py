@@ -7,6 +7,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
@@ -409,6 +410,7 @@ class UploadStreamingTests(APITestCase):
             r"\| archive_streaming_seconds=\d+\.\d{6}",
         )
         for timing_field in (
+            "duplicate_check_seconds",
             "parsing_seconds",
             "uploaded_file_insert_seconds",
             "event_object_creation_seconds",
@@ -422,6 +424,10 @@ class UploadStreamingTests(APITestCase):
             )
         self.assertIn("| uploaded_file_batch_size=500", benchmark_log)
         self.assertIn("| event_batch_size=1000", benchmark_log)
+        self.assertIn(
+            "| duplicate_existing_filename_count=0",
+            benchmark_log,
+        )
         self.assertNotIn("benchmark", response.json())
 
     def test_valid_tar_gz_upload_preserves_filename_and_event_count(self):
@@ -536,3 +542,150 @@ class UploadStreamingTests(APITestCase):
         self.assertIn("| error_stage=parsing", benchmark_log)
         self.assertEqual(UploadedFile.objects.count(), 0)
         self.assertEqual(Event.objects.count(), 0)
+
+    def test_uploading_same_archive_again_rejects_existing_basename(self):
+        first_response, _ = self.upload_and_capture_log(
+            make_archive([regular_member()])
+        )
+        duplicate_response, benchmark_log = self.upload_and_capture_log(
+            make_archive([regular_member()])
+        )
+
+        self.assertEqual(first_response.status_code, 201)
+        self.assertEqual(
+            first_response.json(),
+            {
+                "status": "success",
+                "message": "1 file(s) uploaded successfully.",
+                "files": ["events.log"],
+            },
+        )
+        self.assertEqual(duplicate_response.status_code, 409)
+        self.assertEqual(
+            duplicate_response.json(),
+            {
+                "detail": (
+                    "An archive member named 'events.log' "
+                    "has already been imported."
+                )
+            },
+        )
+        self.assertEqual(UploadedFile.objects.count(), 1)
+        self.assertEqual(Event.objects.count(), 1)
+        self.assertIn("| outcome=failure", benchmark_log)
+        self.assertIn("| error_stage=duplicate_detection", benchmark_log)
+        self.assertIn("| duplicate_existing_filename_count=1", benchmark_log)
+        self.assertRegex(
+            benchmark_log,
+            r"\| duplicate_check_seconds=\d+\.\d{6}",
+        )
+        self.assertNotIn("events.log", benchmark_log)
+
+    def test_existing_basename_is_duplicate_even_when_content_differs(self):
+        self.upload_and_capture_log(make_archive([regular_member()]))
+        different_content = EVENT_LINE.replace(b"1 2 ", b"2 2 ", 1)
+
+        response, _ = self.upload_and_capture_log(
+            make_archive([regular_member("other/path/events.log", different_content)])
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(UploadedFile.objects.count(), 1)
+        self.assertEqual(Event.objects.count(), 1)
+        self.assertEqual(Event.objects.get().serialno, 1)
+
+    def test_same_basename_at_two_internal_paths_is_rejected(self):
+        response, benchmark_log = self.upload_and_capture_log(
+            make_archive(
+                [
+                    regular_member("first/shared.log"),
+                    regular_member("second/shared.log"),
+                ]
+            )
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(
+            response.json(),
+            {
+                "detail": (
+                    "The submitted archives contain more than one member "
+                    "named 'shared.log'."
+                )
+            },
+        )
+        self.assertEqual(UploadedFile.objects.count(), 0)
+        self.assertEqual(Event.objects.count(), 0)
+        self.assertNotIn("shared.log", benchmark_log)
+
+    def test_same_basename_across_two_archives_is_rejected(self):
+        response, _ = self.upload_and_capture_log(
+            [
+                make_archive(
+                    [regular_member("first/duplicate.log")],
+                    archive_name="first.tgz",
+                ),
+                make_archive(
+                    [regular_member("second/duplicate.log")],
+                    archive_name="second.tgz",
+                ),
+            ]
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(UploadedFile.objects.count(), 0)
+        self.assertEqual(Event.objects.count(), 0)
+
+    def test_later_existing_duplicate_rolls_back_earlier_archive(self):
+        existing_response, _ = self.upload_and_capture_log(
+            make_archive(
+                [regular_member("existing.log")],
+                archive_name="existing.tgz",
+            )
+        )
+        self.assertEqual(existing_response.status_code, 201)
+
+        response, _ = self.upload_and_capture_log(
+            [
+                make_archive(
+                    [regular_member("new.log")],
+                    archive_name="new.tgz",
+                ),
+                make_archive(
+                    [regular_member("nested/existing.log")],
+                    archive_name="duplicate.tgz",
+                ),
+            ]
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(
+            list(UploadedFile.objects.values_list("filename", flat=True)),
+            ["existing.log"],
+        )
+        self.assertEqual(Event.objects.count(), 1)
+        self.assertEqual(Event.objects.get().uploaded_file.filename, "existing.log")
+
+    def test_duplicate_initialization_uses_one_filename_query(self):
+        archive = make_archive(
+            [
+                regular_member("one.log"),
+                regular_member("two.log"),
+                regular_member("three.log"),
+            ]
+        )
+
+        with CaptureQueriesContext(connection) as queries:
+            response, _ = self.upload_and_capture_log(archive)
+
+        filename_queries = [
+            query["sql"]
+            for query in queries
+            if query["sql"].lstrip().upper().startswith("SELECT")
+            and "events_uploadedfile" in query["sql"].lower()
+        ]
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(filename_queries), 1)
+        self.assertEqual(UploadedFile.objects.count(), 3)
+        self.assertEqual(Event.objects.count(), 3)

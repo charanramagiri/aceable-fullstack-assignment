@@ -120,7 +120,7 @@ function UploadCard() {
           role="status"
           aria-live="polite"
         >
-          Uploading and importing archives. Large imports may take 20 seconds or longer.
+          Uploading and importing archives. Large imports may take 30 seconds or longer.
         </p>
       )}
 

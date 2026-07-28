@@ -11,13 +11,64 @@ UPLOADED_FILE_BATCH_SIZE = 500
 EVENT_BATCH_SIZE = 1000
 
 
+class DuplicateArchiveMemberError(Exception):
+    """Raised when an exact archive-member basename has already been submitted."""
+
+    def __init__(self, filename, *, already_imported):
+        self.filename = filename
+        self.already_imported = already_imported
+        super().__init__(filename)
+
+
 def import_archive_events(archive_members, metrics=None):
     import_started = time.perf_counter()
     try:
         with transaction.atomic():
+            if metrics is not None:
+                metrics.error_stage = "duplicate_detection"
+            duplicate_check_started = time.perf_counter()
+            try:
+                existing_filenames = set(
+                    UploadedFile.objects.values_list("filename", flat=True)
+                )
+            finally:
+                if metrics is not None:
+                    metrics.duplicate_check_seconds += (
+                        time.perf_counter() - duplicate_check_started
+                    )
+
+            if metrics is not None:
+                metrics.duplicate_existing_filename_count = len(
+                    existing_filenames
+                )
+
+            submitted_filenames = set()
             parsed_files = []
 
             for archive_member in archive_members:
+                if metrics is not None:
+                    metrics.error_stage = "duplicate_detection"
+                duplicate_check_started = time.perf_counter()
+                try:
+                    # This experiment intentionally treats exact, case-sensitive
+                    # basename matches as duplicates regardless of file contents.
+                    if archive_member.filename in existing_filenames:
+                        raise DuplicateArchiveMemberError(
+                            archive_member.filename,
+                            already_imported=True,
+                        )
+                    if archive_member.filename in submitted_filenames:
+                        raise DuplicateArchiveMemberError(
+                            archive_member.filename,
+                            already_imported=False,
+                        )
+                    submitted_filenames.add(archive_member.filename)
+                finally:
+                    if metrics is not None:
+                        metrics.duplicate_check_seconds += (
+                            time.perf_counter() - duplicate_check_started
+                        )
+
                 if metrics is not None:
                     metrics.error_stage = "parsing"
                 parsing_started = time.perf_counter()
