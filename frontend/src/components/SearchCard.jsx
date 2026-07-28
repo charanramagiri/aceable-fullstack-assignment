@@ -1,12 +1,15 @@
 import { useState } from 'react'
-import { searchEvents } from '../api/api'
+import { getApiErrorMessage, searchEvents } from '../api/api'
 
-function SearchCard({ onSearch }) {
+const SEARCH_ERROR_ID = 'search-error'
+
+function SearchCard({ onSearchStart, onSearch, onSearchError, onClear }) {
   const [search, setSearch] = useState('')
   const [earliestTime, setEarliestTime] = useState('')
   const [latestTime, setLatestTime] = useState('')
   const [searching, setSearching] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [invalidFields, setInvalidFields] = useState([])
 
   function validateTimeRange() {
     const integerPattern = /^-?\d+$/
@@ -14,18 +17,40 @@ function SearchCard({ onSearch }) {
     const latestValue = latestTime.trim()
 
     if (earliestValue && !integerPattern.test(earliestValue)) {
-      return 'Earliest time must be a whole number.'
+      return {
+        message: 'Earliest time must be a whole-number Unix timestamp.',
+        fields: ['earliest-time'],
+      }
     }
 
     if (latestValue && !integerPattern.test(latestValue)) {
-      return 'Latest time must be a whole number.'
+      return {
+        message: 'Latest time must be a whole-number Unix timestamp.',
+        fields: ['latest-time'],
+      }
     }
 
     if (earliestValue && latestValue && BigInt(earliestValue) > BigInt(latestValue)) {
-      return 'Earliest time cannot be later than latest time.'
+      return {
+        message: 'Earliest Unix timestamp cannot be later than latest Unix timestamp.',
+        fields: ['earliest-time', 'latest-time'],
+      }
     }
 
-    return ''
+    return null
+  }
+
+  function clearError() {
+    setErrorMessage('')
+    setInvalidFields([])
+  }
+
+  function handleClear() {
+    setSearch('')
+    setEarliestTime('')
+    setLatestTime('')
+    clearError()
+    onClear()
   }
 
   async function handleSubmit(event) {
@@ -34,7 +59,8 @@ function SearchCard({ onSearch }) {
     const validationError = validateTimeRange()
 
     if (validationError) {
-      setErrorMessage(validationError)
+      setErrorMessage(validationError.message)
+      setInvalidFields(validationError.fields)
       return
     }
 
@@ -59,14 +85,18 @@ function SearchCard({ onSearch }) {
     }
 
     setSearching(true)
-    setErrorMessage('')
+    clearError()
+    onSearchStart()
 
     try {
       const response = await searchEvents(payload)
       onSearch(response, payload)
     } catch (error) {
-      const backendMessage = error.response?.data?.message || error.response?.data?.detail
-      setErrorMessage(backendMessage || 'Unable to search events. Please try again.')
+      setErrorMessage(
+        getApiErrorMessage(error, 'Unable to search events. Please try again.'),
+      )
+      setInvalidFields([])
+      onSearchError()
     } finally {
       setSearching(false)
     }
@@ -75,65 +105,88 @@ function SearchCard({ onSearch }) {
   return (
     <section className="card" aria-labelledby="search-title">
       <div className="card-heading">
-        <div>
-          <p className="card-kicker"></p>
-          <h2 id="search-title">Search events</h2>
-        </div>
-        <span className="status-chip"></span>
+        <h2 id="search-title">Search events</h2>
       </div>
 
       <p className="card-description">
-        Filter parsed events by address, account, action, and time range.
+        Search account IDs, instance IDs, source or destination IPs, actions, and log
+        status. Leave filters blank to browse all events.
       </p>
 
       <form onSubmit={handleSubmit}>
         <div className="search-fields">
-        <label>
-          Search term
-          <input
-            type="search"
-            placeholder="e.g. account ID or IP address"
-            value={search}
-            disabled={searching}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </label>
-        <label>
-          Earliest time
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="Unix timestamp"
-            value={earliestTime}
-            disabled={searching}
-            onChange={(event) => setEarliestTime(event.target.value)}
-          />
-        </label>
-        <label>
-          Latest time
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="Unix timestamp"
-            value={latestTime}
-            disabled={searching}
-            onChange={(event) => setLatestTime(event.target.value)}
-          />
-        </label>
+          <label htmlFor="event-search">
+            Search term
+            <input
+              id="event-search"
+              type="search"
+              placeholder="Account, instance, IP, action, or log status"
+              value={search}
+              disabled={searching}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                clearError()
+              }}
+            />
+          </label>
+          <label htmlFor="earliest-time">
+            Earliest start time (Unix seconds)
+            <input
+              id="earliest-time"
+              type="text"
+              inputMode="numeric"
+              placeholder="Unix timestamp"
+              value={earliestTime}
+              disabled={searching}
+              aria-invalid={invalidFields.includes('earliest-time')}
+              aria-describedby={errorMessage ? SEARCH_ERROR_ID : undefined}
+              onChange={(event) => {
+                setEarliestTime(event.target.value)
+                clearError()
+              }}
+            />
+          </label>
+          <label htmlFor="latest-time">
+            Latest end time (Unix seconds)
+            <input
+              id="latest-time"
+              type="text"
+              inputMode="numeric"
+              placeholder="Unix timestamp"
+              value={latestTime}
+              disabled={searching}
+              aria-invalid={invalidFields.includes('latest-time')}
+              aria-describedby={errorMessage ? SEARCH_ERROR_ID : undefined}
+              onChange={(event) => {
+                setLatestTime(event.target.value)
+                clearError()
+              }}
+            />
+          </label>
         </div>
 
-        <button
-          className={`primary-button ${searching ? 'is-loading' : ''}`}
-          type="submit"
-          disabled={searching}
-          aria-busy={searching}
-        >
-          {searching ? 'Searching...' : 'Search events'}
-        </button>
+        <div className="form-actions">
+          <button
+            className={`primary-button ${searching ? 'is-loading' : ''}`}
+            type="submit"
+            disabled={searching}
+            aria-busy={searching}
+          >
+            {searching ? 'Searching…' : 'Search events'}
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            disabled={searching}
+            onClick={handleClear}
+          >
+            Clear filters
+          </button>
+        </div>
       </form>
 
       {errorMessage && (
-        <p className="search-feedback" role="alert">
+        <p id={SEARCH_ERROR_ID} className="search-feedback" role="alert">
           {errorMessage}
         </p>
       )}
