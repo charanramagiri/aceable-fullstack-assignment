@@ -4,6 +4,9 @@ import tarfile
 from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
+from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
@@ -15,6 +18,7 @@ from events.services.parser_service import (
     parse_event_line,
     parse_event_stream,
 )
+from events.services.search_service import search_events
 
 
 EVENT_LINE = (
@@ -57,6 +61,184 @@ def special_member(member_type, name="unsupported"):
     member_info.type = member_type
     member_info.linkname = "events.log"
     return {"info": member_info}
+
+
+def event_indexed_columns():
+    with connection.cursor() as cursor:
+        constraints = connection.introspection.get_constraints(
+            cursor,
+            Event._meta.db_table,
+        )
+
+    return {
+        tuple(details["columns"])
+        for details in constraints.values()
+        if details["index"] and details["columns"]
+    }
+
+
+class SearchAndIndexTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        uploaded_file = UploadedFile.objects.create(
+            filename="search-events.log",
+            event_count=3,
+        )
+        common_fields = {
+            "uploaded_file": uploaded_file,
+            "version": "2",
+            "srcport": 12345,
+            "dstport": 443,
+            "protocol": 6,
+            "packets": 10,
+            "bytes": 1000,
+        }
+        Event.objects.create(
+            **common_fields,
+            serialno=1,
+            account_id="target-account",
+            instance_id="target-instance",
+            srcaddr="10.11.12.13",
+            dstaddr="192.0.2.44",
+            starttime=200,
+            endtime=300,
+            action="TARGET-ACTION",
+            log_status="TARGET-STATUS",
+        )
+        Event.objects.create(
+            **common_fields,
+            serialno=2,
+            account_id="early-account",
+            instance_id="early-instance",
+            srcaddr="10.0.0.1",
+            dstaddr="192.0.2.1",
+            starttime=100,
+            endtime=200,
+            action="ACCEPT",
+            log_status="OK",
+        )
+        Event.objects.create(
+            **common_fields,
+            serialno=3,
+            account_id="late-account",
+            instance_id="late-instance",
+            srcaddr="10.0.0.2",
+            dstaddr="192.0.2.2",
+            starttime=300,
+            endtime=400,
+            action="REJECT",
+            log_status="NODATA",
+        )
+
+    def assert_search_serials(self, expected_serials, **criteria):
+        results = search_events(page_size=100, **criteria)
+        serials = [event["serialno"] for event in results["results"]]
+        self.assertEqual(serials, expected_serials)
+        self.assertEqual(results["count"], len(expected_serials))
+        return results
+
+    def test_all_six_text_fields_remain_searchable(self):
+        for search_string in (
+            "target-account",
+            "target-instance",
+            "10.11.12.13",
+            "192.0.2.44",
+            "target-action",
+            "target-status",
+        ):
+            with self.subTest(search_string=search_string):
+                self.assert_search_serials(
+                    [1],
+                    search_string=search_string,
+                )
+
+    def test_time_and_combined_filters_remain_unchanged(self):
+        self.assert_search_serials([1, 3], earliest_time=200)
+        self.assert_search_serials([1, 2], latest_time=300)
+        self.assert_search_serials(
+            [1],
+            earliest_time=200,
+            latest_time=350,
+        )
+        self.assert_search_serials(
+            [1],
+            search_string="target-action",
+            earliest_time=200,
+            latest_time=350,
+        )
+
+    def test_filename_display_remains_unchanged(self):
+        results = self.assert_search_serials(
+            [1],
+            search_string="target-account",
+        )
+
+        self.assertEqual(
+            results["results"][0]["file_name"],
+            "search-events.log",
+        )
+
+    def test_only_required_event_secondary_indexes_remain(self):
+        self.assertEqual(
+            event_indexed_columns(),
+            {
+                ("uploaded_file_id",),
+                ("starttime",),
+                ("endtime",),
+            },
+        )
+
+
+class EventIndexMigrationTests(TransactionTestCase):
+    reset_sequences = True
+
+    migrate_from = ("events", "0001_initial")
+    migrate_to = (
+        "events",
+        "0002_alter_event_account_id_alter_event_action_and_more",
+    )
+    text_index_columns = {
+        ("account_id",),
+        ("instance_id",),
+        ("srcaddr",),
+        ("dstaddr",),
+        ("action",),
+        ("log_status",),
+    }
+    retained_index_columns = {
+        ("uploaded_file_id",),
+        ("starttime",),
+        ("endtime",),
+    }
+
+    def migrate(self, target):
+        executor = MigrationExecutor(connection)
+        executor.migrate([target])
+
+    def test_index_migration_is_reversible(self):
+        self.migrate(self.migrate_from)
+        self.assertEqual(
+            event_indexed_columns(),
+            self.text_index_columns | self.retained_index_columns,
+        )
+
+        self.migrate(self.migrate_to)
+        self.assertEqual(
+            event_indexed_columns(),
+            self.retained_index_columns,
+        )
+
+        self.migrate(self.migrate_from)
+        self.assertEqual(
+            event_indexed_columns(),
+            self.text_index_columns | self.retained_index_columns,
+        )
+
+        self.migrate(self.migrate_to)
+        self.assertEqual(
+            event_indexed_columns(),
+            self.retained_index_columns,
+        )
 
 
 class ParsedEventTests(APITestCase):

@@ -21,13 +21,13 @@ class Event(models.Model):
 
     version = models.CharField(max_length=10)
 
-    account_id = models.CharField(max_length=50, db_index=True)
+    account_id = models.CharField(max_length=50)
 
-    instance_id = models.CharField(max_length=50, db_index=True)
+    instance_id = models.CharField(max_length=50)
 
-    srcaddr = models.GenericIPAddressField(db_index=True)
+    srcaddr = models.GenericIPAddressField()
 
-    dstaddr = models.GenericIPAddressField(db_index=True)
+    dstaddr = models.GenericIPAddressField()
 
     srcport = models.PositiveIntegerField()
 
@@ -43,9 +43,9 @@ class Event(models.Model):
 
     endtime = models.BigIntegerField(db_index=True)
 
-    action = models.CharField(max_length=20, db_index=True)
+    action = models.CharField(max_length=20)
 
-    log_status = models.CharField(max_length=20, db_index=True)
+    log_status = models.CharField(max_length=20)
 
     def __str__(self):
         return (
